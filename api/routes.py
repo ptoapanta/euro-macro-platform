@@ -19,6 +19,11 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from config import settings  # noqa: E402
 from data_layer.db import get_session  # noqa: E402
 from data_layer.models import DataPoint, MacroIndicator, create_audit_log  # noqa: E402
+from domain.alert_engine import build_alerts_snapshot  # noqa: E402
+from domain.analytics_engine import build_summary_by_category  # noqa: E402
+from domain.correlation_engine import build_correlation_matrix  # noqa: E402
+from domain.trend_engine import build_trend_snapshot  # noqa: E402
+from domain.volatility_engine import build_volatility_snapshot, build_volatility_snapshot_all  # noqa: E402
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -224,54 +229,67 @@ def get_series(codigo: str):
 @api_bp.route("/reports/summary", methods=["GET"])
 def reports_summary():
     with get_session() as session:
-        indicadores = session.query(MacroIndicator).filter_by(activo=True).all()
-
-        resumen_por_categoria: dict[str, dict] = {}
-        alertas = []
-
-        for indicador in indicadores:
-            ultimo = (
-                session.query(DataPoint)
-                .filter_by(indicator_id=indicador.id)
-                .order_by(DataPoint.fecha_referencia.desc())
-                .first()
-            )
-            if not ultimo:
-                continue
-
-            cat = indicador.categoria or "sin_categoria"
-            resumen_por_categoria.setdefault(cat, {
-                "indicadores": [], "variaciones": [],
-            })
-            resumen_por_categoria[cat]["indicadores"].append(indicador.codigo)
-            if ultimo.variacion_pct is not None:
-                resumen_por_categoria[cat]["variaciones"].append(float(ultimo.variacion_pct))
-
-            if ultimo.variacion_pct is not None and abs(float(ultimo.variacion_pct)) >= settings.alert_threshold_pct:
-                alertas.append({
-                    "indicador": indicador.codigo,
-                    "nombre": indicador.nombre,
-                    "valor_actual": float(ultimo.valor),
-                    "variacion_pct": float(ultimo.variacion_pct),
-                    "fecha": ultimo.fecha_referencia.isoformat(),
-                    "umbral_configurado": settings.alert_threshold_pct,
-                })
-
-        resumen_final = {}
-        for cat, datos in resumen_por_categoria.items():
-            variaciones = datos["variaciones"]
-            resumen_final[cat] = {
-                "indicadores": datos["indicadores"],
-                "total_indicadores": len(datos["indicadores"]),
-                "variacion_max": max(variaciones) if variaciones else None,
-                "variacion_min": min(variaciones) if variaciones else None,
-                "variacion_promedio": round(sum(variaciones) / len(variaciones), 4) if variaciones else None,
-            }
+        resumen = build_summary_by_category(session)
+        alertas = build_alerts_snapshot(session=session)
 
         return jsonify({
             "generado_en": datetime.utcnow().isoformat(),
             "umbral_alerta_pct": settings.alert_threshold_pct,
-            "resumen_por_categoria": resumen_final,
-            "alertas": alertas,
+            "resumen_por_categoria": {
+                r.categoria: {
+                    "indicadores": r.indicadores,
+                    "total_indicadores": r.total_indicadores,
+                    "variacion_max": r.variacion_max,
+                    "variacion_min": r.variacion_min,
+                    "variacion_promedio": r.variacion_promedio,
+                } for r in resumen
+            },
+            "alertas": [
+                {
+                    "indicador": a.indicador_codigo, "nombre": a.indicador_nombre,
+                    "valor_actual": a.valor_actual, "variacion_pct": a.variacion_pct,
+                    "fecha": a.fecha, "umbral_configurado": a.umbral_configurado,
+                    "severidad": a.severidad,
+                } for a in alertas
+            ],
             "total_alertas": len(alertas),
+        })
+
+
+# ─────────────────────────────────────────────
+# Analítica avanzada (Etapa 3: motores de dominio)
+# ─────────────────────────────────────────────
+@api_bp.route("/analytics/volatility", methods=["GET"])
+def analytics_volatility():
+    codigo = request.args.get("codigo")
+    with get_session() as session:
+        if codigo:
+            snap = build_volatility_snapshot(codigo, session)
+            if not snap:
+                return jsonify({"error": f"Indicador '{codigo}' no existe"}), 404
+            return jsonify(snap.__dict__)
+
+        snaps = build_volatility_snapshot_all(session)
+        return jsonify({"total": len(snaps), "volatilidades": [s.__dict__ for s in snaps]})
+
+
+@api_bp.route("/analytics/trend/<codigo>", methods=["GET"])
+def analytics_trend(codigo: str):
+    with get_session() as session:
+        snap = build_trend_snapshot(codigo, session)
+        if not snap:
+            return jsonify({"error": f"Indicador '{codigo}' no existe"}), 404
+        return jsonify(snap.__dict__)
+
+
+@api_bp.route("/analytics/correlations", methods=["GET"])
+def analytics_correlations():
+    codigos_param = request.args.get("codigos")
+    codigos = codigos_param.split(",") if codigos_param else None
+    with get_session() as session:
+        matriz = build_correlation_matrix(codigos, session)
+        return jsonify({
+            "codigos": matriz.codigos,
+            "matriz": matriz.matriz,
+            "n_observaciones_comunes": matriz.n_observaciones_comunes,
         })

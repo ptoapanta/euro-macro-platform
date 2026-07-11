@@ -98,3 +98,31 @@ def test_reports_summary_detecta_alerta(client, auth_headers):
     assert data["total_alertas"] >= 1
     codigos_en_alerta = [a["indicador"] for a in data["alertas"]]
     assert "TEST_DP" in codigos_en_alerta
+    assert data["alertas"][0]["severidad"] in ("moderada", "alta")
+
+
+def test_analytics_volatility_indicador_especifico(client, auth_headers):
+    resp = client.get("/api/analytics/volatility?codigo=TEST_DP", headers=auth_headers)
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["indicador_codigo"] == "TEST_DP"
+
+
+def test_analytics_volatility_indicador_inexistente(client, auth_headers):
+    resp = client.get("/api/analytics/volatility?codigo=NO_EXISTE", headers=auth_headers)
+    assert resp.status_code == 404
+
+
+def test_analytics_trend(client, auth_headers):
+    resp = client.get("/api/analytics/trend/TEST_DP", headers=auth_headers)
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["indicador_codigo"] == "TEST_DP"
+    assert data["direccion"] in ("alcista", "bajista", "estable", "insuficientes_datos")
+
+
+def test_analytics_correlations(client, auth_headers):
+    resp = client.get("/api/analytics/correlations", headers=auth_headers)
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert "matriz" in data
