@@ -1,0 +1,28 @@
+# Entornos virtuales
+venv/
+env/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Variables de entorno (nunca subir credenciales reales)
+.env
+
+# Base de datos local
+data_layer/storage/*.db
+data_layer/storage/*.sqlite3
+
+# Reportes generados (artefactos, no código fuente)
+reports/generated/*.pdf
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
+
+# Streamlit
+.streamlit/secrets.toml
