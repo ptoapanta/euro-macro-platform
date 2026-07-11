@@ -53,6 +53,7 @@ class Settings:
     debug: bool = os.getenv("DEBUG", "true").lower() == "true"
     api_port: int = int(os.getenv("API_PORT", "5000"))
     streamlit_port: int = int(os.getenv("STREAMLIT_PORT", "8501"))
+    api_base_url: str = os.getenv("API_BASE_URL", f"http://localhost:{os.getenv('API_PORT', '5000')}")
 
 
 settings = Settings()
