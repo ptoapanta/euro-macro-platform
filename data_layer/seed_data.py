@@ -57,13 +57,12 @@ INDICADORES_BASE = [
     ),
 ]
 
-# Parámetros de la caminata aleatoria simulada por indicador:
-# (valor_inicial, volatilidad_diaria, min_razonable, max_razonable)
+# Parámetros: (valor_inicial, volatilidad, min_razonable, max_razonable, drift_esperado)
 SIMULACION_PARAMS = {
-    "CPI_EA": (2.4, 0.05, 0.0, 6.0),
-    "GDP_EA": (2950.0, 4.0, 2700.0, 3200.0),
-    "UNEMP_EA": (6.5, 0.03, 5.5, 9.0),
-    "ECB_RATE": (3.75, 0.05, 0.0, 6.0),
+    "CPI_EA": (2.4, 0.05, 0.0, 6.0, 0.01),      # Ligera tendencia inflacionaria
+    "GDP_EA": (2950.0, 4.0, 2700.0, 3200.0, 1.5), # Crecimiento económico sostenido
+    "UNEMP_EA": (6.5, 0.03, 5.5, 9.0, 0.0),     # Se mantiene sin tendencia clara
+    "ECB_RATE": (3.75, 0.05, 0.0, 6.0, 0.0),    # Controlado por política monetaria
 }
 
 
@@ -84,11 +83,12 @@ def seed_indicators(session) -> dict[str, MacroIndicator]:
 
 
 def _generar_serie_simulada(valor_inicial: float, volatilidad: float,
-                             minimo: float, maximo: float, n_periodos: int) -> list[float]:
-    """Caminata aleatoria acotada: valores encadenados y realistas."""
+                             minimo: float, maximo: float, n_periodos: int, drift: float = 0.0) -> list[float]:
+    """Caminata aleatoria acotada con tendencia (drift) para mayor realismo financiero."""
     valores = [valor_inicial]
     for _ in range(n_periodos - 1):
-        siguiente = valores[-1] + random.gauss(0, volatilidad)
+        # Al valor anterior le sumamos la tendencia (drift) y el shock aleatorio (gauss)
+        siguiente = valores[-1] + drift + random.gauss(0, volatilidad)
         siguiente = max(minimo, min(maximo, siguiente))
         valores.append(round(siguiente, 4))
     return valores
@@ -140,7 +140,7 @@ def seed_historical_data(session, indicadores: dict[str, MacroIndicator]) -> int
     # ── Resto de indicadores: series simuladas con frecuencia propia ──
     frecuencia_dias = {"mensual": 30, "trimestral": 90}
 
-    for codigo, (v0, vol, vmin, vmax) in SIMULACION_PARAMS.items():
+    for codigo, (v0, vol, vmin, vmax, drift) in SIMULACION_PARAMS.items():
         indicador = indicadores.get(codigo)
         if not indicador or indicador.series:
             continue
