@@ -12,7 +12,7 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
@@ -24,6 +24,7 @@ from domain.analytics_engine import build_summary_by_category  # noqa: E402
 from domain.correlation_engine import build_correlation_matrix  # noqa: E402
 from domain.trend_engine import build_trend_snapshot  # noqa: E402
 from domain.volatility_engine import build_volatility_snapshot, build_volatility_snapshot_all  # noqa: E402
+from reports.pdf_generator import generate_summary_report  # noqa: E402
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -293,3 +294,57 @@ def analytics_correlations():
             "matriz": matriz.matriz,
             "n_observaciones_comunes": matriz.n_observaciones_comunes,
         })
+
+
+# ─────────────────────────────────────────────
+# Reporte PDF (Etapa 5)
+# ─────────────────────────────────────────────
+@api_bp.route("/reports/pdf", methods=["GET"])
+def reports_pdf():
+    with get_session() as session:
+        resumen = build_summary_by_category(session)
+        alertas = build_alerts_snapshot(session=session)
+
+        indicadores = session.query(MacroIndicator).filter_by(activo=True).order_by(MacroIndicator.codigo).all()
+        ultimos_valores = []
+        for indicador in indicadores:
+            ultimo = (
+                session.query(DataPoint)
+                .filter_by(indicator_id=indicador.id)
+                .order_by(DataPoint.fecha_referencia.desc())
+                .first()
+            )
+            if not ultimo:
+                continue
+            ultimos_valores.append({
+                "codigo": indicador.codigo,
+                "nombre": indicador.nombre,
+                "valor": float(ultimo.valor),
+                "variacion_pct": float(ultimo.variacion_pct) if ultimo.variacion_pct is not None else None,
+                "fecha": ultimo.fecha_referencia.isoformat(),
+            })
+
+        resumen_dict = {
+            r.categoria: {
+                "total_indicadores": r.total_indicadores,
+                "variacion_max": r.variacion_max,
+                "variacion_min": r.variacion_min,
+                "variacion_promedio": r.variacion_promedio,
+            } for r in resumen
+        }
+        alertas_dict = [
+            {
+                "indicador": a.indicador_codigo, "nombre": a.indicador_nombre,
+                "valor_actual": a.valor_actual, "variacion_pct": a.variacion_pct,
+                "fecha": a.fecha, "severidad": a.severidad,
+            } for a in alertas
+        ]
+
+        ruta_pdf = generate_summary_report(resumen_dict, alertas_dict, ultimos_valores)
+
+    return send_file(
+        str(ruta_pdf),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=ruta_pdf.name,
+    )

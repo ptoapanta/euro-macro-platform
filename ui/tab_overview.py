@@ -5,6 +5,8 @@ ui/tab_overview.py — Pestaña de resumen general
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import streamlit as st
 
 from ui.api_client import ApiClient, is_error
@@ -32,7 +34,24 @@ def render_overview(client: ApiClient) -> None:
     col4.metric("Alertas severidad alta", sum(1 for a in alertas if a.get("severidad") == "alta"))
 
     st.divider()
-    st.markdown("### Últimos valores por indicador")
+
+    col_titulo, col_boton = st.columns([4, 1])
+    with col_titulo:
+        st.markdown("### Últimos valores por indicador")
+    with col_boton:
+        if st.button("📄 Generar reporte PDF"):
+            pdf_bytes = client.download_pdf_report()
+            if pdf_bytes:
+                st.session_state["pdf_generado"] = pdf_bytes
+            else:
+                st.error("No se pudo generar el reporte.")
+
+    if "pdf_generado" in st.session_state:
+        nombre_archivo = f"reporte_macro_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        st.download_button(
+            "⬇️ Descargar PDF", data=st.session_state["pdf_generado"],
+            file_name=nombre_archivo, mime="application/pdf",
+        )
 
     filas = []
     for ind in indicadores:

@@ -82,6 +82,16 @@ class ApiClient:
         params = {"codigos": ",".join(codigos)} if codigos else None
         return self._get("/api/analytics/correlations", params)
 
+    def download_pdf_report(self) -> bytes | None:
+        """Descarga el reporte PDF. Devuelve los bytes o None si falla."""
+        try:
+            resp = requests.get(f"{self.base_url}/api/reports/pdf", headers=self.headers,
+                                 timeout=30)
+            resp.raise_for_status()
+            return resp.content
+        except requests.exceptions.RequestException:
+            return None
+
 
 def is_error(response: dict | None) -> bool:
     """True si la respuesta representa un fallo de conexión o de la API."""
