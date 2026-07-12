@@ -12,6 +12,7 @@ curso de Automatización.
 4. [Funcionalidades principales](04-funcionalidades.md)
 5. [Evidencias de pruebas y resultados](05-pruebas-y-resultados.md)
 6. [Reflexión crítica del proceso de desarrollo](06-reflexion-critica.md)
+7. [Checklist final contra la rúbrica](07-checklist-rubrica.md)
 
 ## Cómo se construyó este proyecto
 
