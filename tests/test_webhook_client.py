@@ -23,7 +23,22 @@ def test_build_webhook_payload_sin_alertas():
     assert payload["alertas"] == []
 
 
-def test_send_alert_webhook_sin_url_no_lanza_excepcion():
+def test_send_alert_webhook_sin_url_no_lanza_excepcion(monkeypatch):
+    """Simula que NO hay webhook configurado, sin depender del .env real
+    del entorno donde se ejecuten las pruebas.
+
+    `settings` es un dataclass frozen, así que no se puede sobreescribir
+    uno de sus atributos directamente (lanzaría FrozenInstanceError) —
+    en su lugar se reemplaza el objeto `settings` completo del módulo,
+    que monkeypatch restaura automáticamente al terminar el test.
+    """
+    import dataclasses
+
+    import integrations.webhook_client as wc
+
+    settings_sin_webhook = dataclasses.replace(wc.settings, outbound_webhook_url="")
+    monkeypatch.setattr(wc, "settings", settings_sin_webhook)
+
     resultado = send_alert_webhook([{"indicador": "TEST"}], webhook_url=None)
     assert resultado["enviado"] is False
     assert "no configurado" in resultado["detalle"].lower()
