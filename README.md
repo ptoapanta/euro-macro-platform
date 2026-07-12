@@ -12,14 +12,20 @@ capas desacopladas, API REST, dashboard interactivo y reportes automáticos.
 
 - [x] Etapa 0 — Preparación y repositorio
 - [x] Etapa 1 — Capa de datos (modelos, seed, ingesta EUR/USD real)
-- [ ] Etapa 2 — API REST (Flask)
-- [ ] Etapa 3 — Motores de análisis (volatilidad, correlaciones, alertas)
-- [ ] Etapa 4 — Dashboard (Streamlit)
-- [ ] Etapa 5 — Reportes PDF
-- [ ] Etapa 6 — Integraciones externas (Make/Zapier)
-- [ ] Etapa 7 — Documentación formal
+- [x] Etapa 2 — API REST (Flask)
+- [x] Etapa 3 — Motores de análisis (volatilidad, correlaciones, alertas)
+- [x] Etapa 4 — Dashboard (Streamlit)
+- [x] Etapa 5 — Reportes PDF
+- [x] Etapa 6 — Integraciones externas (Make/Zapier)
+- [x] Etapa 7 — Documentación formal
 - [ ] Etapa 8 — Pruebas integrales
 - [ ] Etapa 9 — Cierre
+
+## Documentación
+
+Ver [`docs/README.md`](docs/README.md) para la documentación técnica y
+funcional completa: contextualización, objetivos, arquitectura, diagramas,
+explicación de cada módulo, evidencias de pruebas y reflexión crítica.
 
 ## Arquitectura
 
