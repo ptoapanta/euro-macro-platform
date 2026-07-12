@@ -67,7 +67,7 @@ class DataPoint(Base):
     __tablename__ = "data_points"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    indicator_id: Mapped[int] = mapped_column(ForeignKey("macro_indicators.id"), nullable=False)
+    indicator_id: Mapped[int] = mapped_column(ForeignKey("macro_indicators.id"), nullable=False), index=True)
 
     valor: Mapped[float] = mapped_column(Numeric(18, 6), nullable=False)
     valor_anterior: Mapped[float | None] = mapped_column(Numeric(18, 6))
@@ -79,7 +79,7 @@ class DataPoint(Base):
 
     referencia_fuente: Mapped[str | None] = mapped_column(String(200))
 
-    fecha_referencia: Mapped[date] = mapped_column(Date, nullable=False)
+    fecha_referencia: Mapped[date] = mapped_column(Date, nullable=False), index=True)
     periodo_label: Mapped[str | None] = mapped_column(String(20))
 
     extra_metadata: Mapped[dict | None] = mapped_column("metadata", JSON)
