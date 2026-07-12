@@ -24,6 +24,7 @@ from domain.analytics_engine import build_summary_by_category  # noqa: E402
 from domain.correlation_engine import build_correlation_matrix  # noqa: E402
 from domain.trend_engine import build_trend_snapshot  # noqa: E402
 from domain.volatility_engine import build_volatility_snapshot, build_volatility_snapshot_all  # noqa: E402
+from integrations.webhook_client import send_alert_webhook  # noqa: E402
 from reports.pdf_generator import generate_summary_report  # noqa: E402
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
@@ -195,7 +196,20 @@ def create_datapoint():
 
         session.commit()
         session.refresh(dp)
-        return jsonify(dp.to_dict()), 201
+
+        respuesta = dp.to_dict()
+
+        if dp.variacion_pct is not None and abs(float(dp.variacion_pct)) >= settings.alert_threshold_pct:
+            resultado_webhook = send_alert_webhook([{
+                "indicador": indicador.codigo,
+                "nombre": indicador.nombre,
+                "valor_actual": float(dp.valor),
+                "variacion_pct": float(dp.variacion_pct),
+                "fecha": dp.fecha_referencia.isoformat(),
+            }])
+            respuesta["webhook"] = resultado_webhook
+
+        return jsonify(respuesta), 201
 
 
 # ─────────────────────────────────────────────
@@ -348,3 +362,32 @@ def reports_pdf():
         as_attachment=True,
         download_name=ruta_pdf.name,
     )
+
+
+# ─────────────────────────────────────────────
+# Webhooks (Etapa 6: integración con Make/Zapier)
+# ─────────────────────────────────────────────
+@api_bp.route("/webhooks/status", methods=["GET"])
+def webhooks_status():
+    url = settings.outbound_webhook_url
+    return jsonify({
+        "configurado": bool(url),
+        "url_enmascarada": (url[:40] + "...") if url else None,
+        "umbral_disparo_pct": settings.alert_threshold_pct,
+    })
+
+
+@api_bp.route("/webhooks/test-outbound", methods=["POST"])
+def webhooks_test_outbound():
+    """Dispara el webhook con una alerta de ejemplo, sin esperar a que
+    ocurra una variación real. Útil para probar la integración con
+    Make/Zapier antes de conectar datos reales.
+    """
+    alerta_ejemplo = [{
+        "indicador": "TEST", "nombre": "Alerta de prueba manual",
+        "valor_actual": 1.2345, "variacion_pct": 5.5,
+        "fecha": datetime.utcnow().date().isoformat(),
+    }]
+    resultado = send_alert_webhook(alerta_ejemplo)
+    codigo_http = 200 if resultado["enviado"] else 502
+    return jsonify(resultado), codigo_http

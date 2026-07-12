@@ -51,7 +51,7 @@ def create_app() -> Flask:
     def index():
         return jsonify({
             "servicio": "Plataforma de Análisis Macroeconómico del Euro",
-            "version": "0.4.0-etapa5",
+            "version": "0.5.0-etapa6",
             "endpoints": [
                 "GET  /api/health",
                 "GET  /api/indicators",
@@ -65,6 +65,8 @@ def create_app() -> Flask:
                 "GET  /api/analytics/volatility",
                 "GET  /api/analytics/trend/<codigo>",
                 "GET  /api/analytics/correlations",
+                "GET  /api/webhooks/status",
+                "POST /api/webhooks/test-outbound",
             ],
         })
 
